@@ -1,11 +1,14 @@
 import uvicorn
+import string
 from uuid import uuid4
 from datetime import datetime, timedelta
+from random import choices
 from sqlalchemy import create_engine, Column, Integer, String, DateTime
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import sessionmaker, Session
-from fastapi import FastAPI, Depends
-from pydantic import BaseModel
+from fastapi import FastAPI, Depends, Request
+from pydantic import BaseModel, HttpUrl
 
 DATABASE_URL = "sqlite:///./test.db"
 
@@ -34,19 +37,24 @@ class Url(BaseModel):
         orm_mode = True
 
 
-def get_url_by_url(db: Session, url: str) -> DbUrl:
-    return db.query(Url).filter(Url.url == url).first()
-
-def get_url_by_key(db: Session, key: str) -> DbUrl:
+def get_url(db: Session, key: str) -> DbUrl:
     return db.query(Url).filter(Url.key == key).first()
 
+key_characters = string.ascii_letters + string.digits
+
 def create_url(db: Session, url: str) -> DbUrl:
-    key = str(uuid4()) # TODO change here to something within 5-10 characters and validate
-    expires = datetime.now() + timedelta(hours=1)
-    db_url = DbUrl(url=url, key=key, expires=expires)
-    db.add(db_url)
-    db.commit()
-    db.refresh(db_url)
+    while True:
+        try:
+            key = "".join(choices(key_characters, k=8))
+            expires = datetime.now() + timedelta(hours=1)
+            db_url = DbUrl(url=url, key=key, expires=expires)
+            db.add(db_url)
+            db.commit()
+        except IntegrityError:
+            db.rollback()
+        else:
+            db.refresh(db_url)
+            break
     return db_url
 
 
@@ -62,9 +70,13 @@ def get_db():
         db.close()
 
 @app.get("/{url}")
-async def shortener(url: str, db: Session=Depends(get_db)):
+async def shortener(url: str, request: Request, db: Session=Depends(get_db)) -> HttpUrl:
     db_url = create_url(db, url)
-    return db_url
+    return (
+        request.url.scheme + "://" + 
+        request.url.hostname + 
+        ((":" + request.url.port) if request.url.port else "") + "/" + 
+        db_url.key)
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
