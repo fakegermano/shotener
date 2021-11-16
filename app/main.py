@@ -1,7 +1,5 @@
 import uvicorn
 import string
-from uuid import uuid4
-from urllib.parse import urlparse
 from datetime import datetime, timedelta
 from random import choices
 from sqlalchemy import create_engine, Column, Integer, String, DateTime
@@ -10,7 +8,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import sessionmaker, Session
 from fastapi import FastAPI, Depends, Request, Response
 from fastapi.responses import RedirectResponse
-from pydantic import BaseModel, HttpUrl
+from pydantic import BaseModel
 from validators.domain import domain
 
 DATABASE_URL = "sqlite:///./test.db"
