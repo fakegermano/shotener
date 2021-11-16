@@ -9,8 +9,6 @@ from pydantic import BaseModel
 
 DATABASE_URL = "sqlite:///./test.db"
 
-database = databases.Database(DATABASE_URL)
-
 engine = create_engine(
     DATABASE_URL, connect_args={"check_same_thread": False}
 )
@@ -64,7 +62,7 @@ def get_db():
         db.close()
 
 @app.get("/{url}")
-async def index(url: str, db: Session=Depends(get_db)):
+async def shortener(url: str, db: Session=Depends(get_db)):
     db_url = create_url(db, url)
     return db_url
 
