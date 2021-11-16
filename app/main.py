@@ -70,7 +70,7 @@ def get_db():
     finally:
         db.close()
 
-@app.get("/{url}", responses={
+@app.get("/{url}", response_class=Response, responses={
     200: {"description": "Creates key from url"}, 
     302: {"description": "Redirects to url from key"}})
 async def shortener(url: str, request: Request, db: Session=Depends(get_db)):
@@ -82,7 +82,7 @@ async def shortener(url: str, request: Request, db: Session=Depends(get_db)):
                     content=(
                         request.url.scheme + "://" + 
                         request.url.hostname + 
-                        ((":" + request.url.port) if request.url.port else "") + "/" + 
+                        ((":" + str(request.url.port)) if request.url.port else "") + "/" + 
                         db_url.key))
 
 if __name__ == "__main__":
