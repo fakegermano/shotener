@@ -6,7 +6,7 @@ from sqlalchemy import create_engine, Column, Integer, String, DateTime
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import sessionmaker, Session
-from fastapi import FastAPI, Depends, Request, Response
+from fastapi import FastAPI, Depends, Request, Response, HTTPException
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 from validators.domain import domain
@@ -70,13 +70,21 @@ def get_db():
     finally:
         db.close()
 
-@app.get("/{url}", response_class=Response, responses={
+@app.get("/{key}", response_class=RedirectResponse, status_code=302, responses={
+    404: {"description": "key for url not found"},
+})
+async def expander(key: str, db: Session=Depends(get_db)):
+    url = get_url(db, key)
+    if not url:
+        return HTTPException(status_code=404, detail="URL for key not found")
+    return "https://" + url.url
+
+@app.post("/{url}", response_class=Response, responses={
     200: {"description": "Creates key from url"}, 
-    302: {"description": "Redirects to url from key"}})
+    400: {"description": "Malformed request"}})
 async def shortener(url: str, request: Request, db: Session=Depends(get_db)):
     if not domain(url):
-        loc = get_url(db, url)
-        return RedirectResponse("https://" + loc.url, status_code=302)
+        return HTTPException(status_code=400, detail="url is not a valid domain")
     db_url = create_url(db, url)
     return Response(status_code=200, 
                     content=(
