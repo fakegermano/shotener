@@ -9,9 +9,8 @@ from sqlalchemy.orm import sessionmaker, Session
 from fastapi import FastAPI, Depends, Request, Response, HTTPException
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
-from validators.domain import domain
 
-DATABASE_URL = "sqlite:///./test.db"
+DATABASE_URL = "sqlite:///./prod.db"
 
 engine = create_engine(
     DATABASE_URL, connect_args={"check_same_thread": False}
@@ -28,9 +27,15 @@ class DbUrl(Base):
     key = Column(String, index=True, unique=True)
     expires = Column(DateTime, nullable=True)
 
-class Url(BaseModel):
-    id: int
+class UrlBase(BaseModel):
     url: str
+
+class UrlCreate(UrlBase):
+    pass
+
+
+class Url(UrlBase):
+    id: int
     key: str
     expires: datetime
 
@@ -79,13 +84,11 @@ async def expander(key: str, db: Session=Depends(get_db)):
         return HTTPException(status_code=404, detail="URL for key not found")
     return "https://" + url.url
 
-@app.post("/{url}", response_class=Response, responses={
-    200: {"description": "Creates key from url"}, 
-    400: {"description": "Malformed request"}})
-async def shortener(url: str, request: Request, db: Session=Depends(get_db)):
-    if not domain(url):
-        return HTTPException(status_code=400, detail="url is not a valid domain")
-    db_url = create_url(db, url)
+@app.post("/", response_class=Response, responses={
+    200: {"description": "Creates key from url"},
+})
+async def shortener(url: UrlCreate, request: Request, db: Session=Depends(get_db)):
+    db_url = create_url(db, url.url)
     return Response(status_code=200, 
                     content=(
                         request.url.scheme + "://" + 

@@ -1,16 +1,50 @@
+from unittest import TestCase
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+from urllib.parse import quote
+from hypothesis import given, strategies as st, provisional as pv
 from fastapi.testclient import TestClient
-from main import app
+from main import app, get_db, Base
 
-client = TestClient(app)
+DATABASE_URL = "sqlite:///./test.db"
 
-def test_url_shortener():
-    response = client.post("/google.com")
-    assert response.status_code == 200
-    print(response.content)
-    assert len(response.content.decode().replace(client.base_url + "/", "")) == 8
+class TestUrlShortener(TestCase):
+    def setUp(self) -> None:
+        self.engine = create_engine(
+            DATABASE_URL, connect_args={"check_same_thread": False}
+        )
 
-def test_url_expander():
-    response = client.post("/bing.com")
-    key = response.content.decode().replace(client.base_url + "/", "")
-    response = client.get(f"{key}", allow_redirects=False)
-    assert response.status_code == 302
+        TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self.engine)
+
+        Base.metadata.create_all(bind=self.engine)
+
+        def override_get_db():
+            db = TestingSessionLocal()
+            try:
+                yield db
+            finally:
+                db.close()
+
+        app.dependency_overrides[get_db] = override_get_db
+
+        self.client = TestClient(app)
+
+        return super().setUp()
+
+    def tearDown(self) -> None:
+        Base.metadata.drop_all(bind=self.engine)
+        return super().tearDown()
+
+    @given(url=pv.urls())
+    def test_url_shortener(self, url):
+        response = self.client.post("/", json={"url": url})
+        assert response.status_code == 200
+        assert len(response.content.decode().replace(self.client.base_url + "/", "")) == 8
+
+    @given(url=pv.urls())
+    def test_url_expander(self, url):
+        response = self.client.post("/", json={"url": url})
+        key = response.content.decode().replace(self.client.base_url + "/", "")
+        response = self.client.get(f"{key}", allow_redirects=False)
+        assert response.status_code == 302
