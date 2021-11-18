@@ -1,3 +1,4 @@
+import os
 import uvicorn
 import string
 from datetime import datetime, timedelta
@@ -10,10 +11,10 @@ from fastapi import FastAPI, Depends, Request, Response, HTTPException
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 
-DATABASE_URL = "sqlite:///./prod.db"
+DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./prod.db")
 
 engine = create_engine(
-    DATABASE_URL, connect_args={"check_same_thread": False}
+    DATABASE_URL
 )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -66,7 +67,7 @@ def create_url(db: Session, url: str) -> DbUrl:
 
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI()
+app = FastAPI(title="URL shortener with FastAPI")
 
 def get_db():
     db = SessionLocal()
