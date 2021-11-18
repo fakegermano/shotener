@@ -1,10 +1,11 @@
+from datetime import timedelta, datetime
 from unittest import TestCase
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from hypothesis import given, strategies as st, provisional as pv, settings, Verbosity
+from hypothesis import given, strategies as st, provisional as pv, settings
 from fastapi.testclient import TestClient
-from main import app, get_db, Base, key_characters
+from main import app, get_db, Base, key_characters, DbUrl
 
 DATABASE_URL = "sqlite:///./test.db"
 
@@ -59,8 +60,19 @@ class TestUrlExpanderNotFound(TestSetupDb):
         response = self.client.get(f"{key}", allow_redirects=False)
         assert response.status_code == 404
 
-    
-    
+class TestUrlCleaner(TestSetupDb):
+    @settings(max_examples=10, deadline=None)
+    @given(url=pv.urls())
+    def test_url_expander(self, url):
+        response = self.client.post("/", json={"url": url})
+        key = response.content.decode().replace(self.client.base_url + "/", "")
+        db = sessionmaker(autocommit=False, autoflush=False, bind=self.engine)()
+        db_url = db.query(DbUrl).filter(DbUrl.key == key).first()
+        db_url.expires = datetime.now() - timedelta(minutes=1)
+        db.add(db_url)
+        db.commit()
+        response = self.client.get(f"{key}", allow_redirects=False)
+        assert response.status_code == 404
     
 
 
