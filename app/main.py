@@ -81,9 +81,10 @@ def get_db():
 })
 async def expander(key: str, db: Session=Depends(get_db)):
     url = get_url(db, key)
-    if not url:
-        return HTTPException(status_code=404, detail="URL for key not found")
-    return "https://" + url.url
+    print(url)
+    if url is None:
+        raise HTTPException(status_code=404, detail="URL for key not found")
+    return url.url
 
 @app.post("/", response_class=Response, responses={
     200: {"description": "Creates key from url"},
