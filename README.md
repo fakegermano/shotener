@@ -1,11 +1,13 @@
 # simple url shortener
-This project uses FastAPI and SQL to create a simple URL shortener
+This project uses [FastAPI](https://fastapi.tiangolo.com) and [SQLAlchemy](https://docs.sqlalchemy.org/en/14/orm/) to create a simple URL shortener based on [these](https://github.com/arcotech-services/st-backend-challenge/blob/main/desafios/encurtador-de-url.md) specs.
 
-The shortener creates 8 character keys for urls sent via POST
+This uses a [sqlite](https://www.sqlite.org/index.html) for Test database and [POSTGRESQL](https://www.postgresql.org/) for production.
+
+The shortener creates 8 character keys for urls sent via POST!
 
 ## Running with docker-compose
 
-To run this project, just use [docker-compose]() and do:
+To run this project, just use [docker-compose](https://docs.docker.com/compose/) and do:
 
 ```
 docker-compose up --build
